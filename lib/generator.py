@@ -85,8 +85,12 @@ def generate_candidates(
         # English name variants
         if english_first:
             email = email.replace('{english_first}', english_first.lower())
+        else:
+            email = email.replace('{english_first}', '')
         if english_last:
             email = email.replace('{english_last}', english_last.lower())
+        else:
+            email = email.replace('{english_last}', '')
 
         # Department
         email = email.replace('{dept}', dept)

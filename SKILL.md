@@ -74,10 +74,28 @@ The skill uses a comprehensive pattern library including:
 
 | Method | Accuracy | Speed | Port Dependencies |
 |--------|----------|-------|-------------------|
+| API Provider (Hunter.io/Apollo) | ~95% | Medium | None |
 | Gravatar | ~30% coverage | Fast | None |
 | GitHub | ~20% (tech users) | Medium | None |
 | SMTP | ~95% if works | Slow | Port 25/587/465 |
 | MX check | 100% | Fast | None |
+
+### API Provider Integration
+
+The skill supports external email verification APIs for higher accuracy:
+
+- **Hunter.io**: Email finder + verifier (api key: HUNTER_API_KEY)
+- **ZeroIntel**: Email verification (api key: ZEROINTEL_API_KEY)
+- **Apollo.io**: Email enrichment (api key: APOLLO_API_KEY)
+
+Usage:
+```
+/find-email "张伟" tencent.com --provider hunterio
+```
+
+When API provider is configured, the skill will:
+1. Try direct email lookup via the provider's API
+2. Fall back to local verification (Gravatar/GitHub/SMTP)
 
 ### Catch-All Detection
 

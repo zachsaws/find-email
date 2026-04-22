@@ -6,6 +6,7 @@ from .generator import generate_candidates, generate_from_known_pattern
 from .verifier import EmailVerifier, quick_verify_gravatar, quick_verify_mx
 from .scorer import ConfidenceScorer, format_candidate_list
 from .chinese import chinese_to_pinyin, parse_name, is_chinese_name
+from .api_providers import HunterioProvider, ZeroIntelProvider, ApolloProvider
 
 __all__ = [
     'generate_candidates',
@@ -17,5 +18,8 @@ __all__ = [
     'format_candidate_list',
     'chinese_to_pinyin',
     'parse_name',
-    'is_chinese_name'
+    'is_chinese_name',
+    'HunterioProvider',
+    'ZeroIntelProvider',
+    'ApolloProvider'
 ]
