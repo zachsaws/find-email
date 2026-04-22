@@ -24,6 +24,7 @@ from lib.api_providers import HunterioProvider, ZeroIntelProvider, ApolloProvide
 from lib.pattern_learner import PatternLearner, PatternCache
 from lib.linkedin import scrape_linkedin_profile
 from lib.batch import ResultCache, read_csv_input, write_csv_output
+from lib.fast_verifier import FastVerifier
 
 
 def main():
@@ -48,6 +49,7 @@ def main():
     parser.add_argument('--output-csv', help='Output CSV file for batch results')
     parser.add_argument('--cache-verify', action='store_true', default=True, help='Cache verification results (default: true)')
     parser.add_argument('--clear-cache', action='store_true', help='Clear verification cache')
+    parser.add_argument('--fast', action='store_true', help='Fast mode - skip slow SMTP verification')
 
     args = parser.parse_args()
 
@@ -232,11 +234,16 @@ def main():
         )
 
     # Verify if requested
-    verifier = EmailVerifier(provider=args.provider, api_key=args.api_key)
+    if args.fast:
+        print("[Fast mode] Using quick verification (no SMTP)...")
+        verifier = FastVerifier()
+    else:
+        verifier = EmailVerifier(provider=args.provider, api_key=args.api_key)
     scorer = ConfidenceScorer()
 
     # Try API provider direct lookup first (more reliable than candidate generation)
-    if args.provider:
+    # Skip in fast mode (API lookup not supported by FastVerifier)
+    if args.provider and not args.fast:
         name_parts = args.name.split()
         first_name = args.english_first or (name_parts[0] if name_parts else '')
         last_name = args.english_last or (name_parts[-1] if len(name_parts) > 1 else '')

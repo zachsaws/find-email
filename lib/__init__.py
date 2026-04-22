@@ -10,6 +10,7 @@ from .api_providers import HunterioProvider, ZeroIntelProvider, ApolloProvider
 from .pattern_learner import PatternLearner, PatternCache
 from .linkedin import LinkedInScraper, scrape_linkedin_profile, extract_company_domain
 from .batch import ResultCache, read_csv_input, write_csv_output, write_json_output
+from .fast_verifier import FastVerifier
 
 __all__ = [
     'generate_candidates',
@@ -33,5 +34,6 @@ __all__ = [
     'ResultCache',
     'read_csv_input',
     'write_csv_output',
-    'write_json_output'
+    'write_json_output',
+    'FastVerifier'
 ]
