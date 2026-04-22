@@ -76,20 +76,33 @@ def generate_candidates(
     dept = department or 'it'
 
     for i, pattern in enumerate(pattern_list):
+        # Skip patterns that require english vars when not provided
+        if ('{english_first}' in pattern or '{english_last}' in pattern) and not english_first and not english_last:
+            continue
+
         email = pattern
         email = email.replace('{first}', first)
         email = email.replace('{last}', last)
         email = email.replace('{f}', f)
         email = email.replace('{l}', l)
 
-        # English name variants
-        if english_first:
+        # English name variants - replace full compound patterns first
+        # to avoid partial replacements leaving punctuation artifacts
+        if english_first and english_last:
+            email = email.replace('{english_first}.{english_last}', f'{english_first.lower()}.{english_last.lower()}')
+            email = email.replace('{english_first}{english_last}', f'{english_first.lower()}{english_last.lower()}')
+        elif english_first:
+            email = email.replace('{english_first}.{english_last}', english_first.lower())
+            email = email.replace('{english_first}{english_last}', english_first.lower())
             email = email.replace('{english_first}', english_first.lower())
-        else:
-            email = email.replace('{english_first}', '')
-        if english_last:
+        elif english_last:
+            email = email.replace('{english_first}.{english_last}', english_last.lower())
+            email = email.replace('{english_first}{english_last}', english_last.lower())
             email = email.replace('{english_last}', english_last.lower())
         else:
+            email = email.replace('{english_first}.{english_last}', '')
+            email = email.replace('{english_first}{english_last}', '')
+            email = email.replace('{english_first}', '')
             email = email.replace('{english_last}', '')
 
         # Department
@@ -117,6 +130,10 @@ def generate_candidates(
         if '{last}' in pattern and ('01' in pattern or '1' in pattern or 'a' in pattern):
             # These patterns already have duplicate handling built in
             pass
+
+        # Skip invalid local parts (empty, starts with dot, starts with @)
+        if not email or email.startswith('.') or email.startswith('@'):
+            continue
 
         candidates.append({
             'email': f"{email}@{domain}",

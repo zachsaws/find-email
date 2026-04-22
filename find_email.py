@@ -21,6 +21,7 @@ from lib.api_providers import EmailVerifier
 from lib.scorer import ConfidenceScorer, format_candidate_list
 from lib.chinese import chinese_to_pinyin, is_chinese_name
 from lib.api_providers import HunterioProvider, ZeroIntelProvider, ApolloProvider
+from lib.pattern_learner import PatternLearner, PatternCache
 
 
 def main():
@@ -37,13 +38,47 @@ def main():
     parser.add_argument('--output', choices=['text', 'json'], default='text', help='Output format')
     parser.add_argument('--provider', choices=['hunterio', 'zerointel', 'apollo'], help='Email verification API provider')
     parser.add_argument('--api-key', help='API key for the verification provider')
+    parser.add_argument('--learn-from', help='Learn pattern from a known email at this domain (e.g., john@company.com)')
+    parser.add_argument('--cache-patterns', action='store_true', default=True, help='Cache learned patterns (default: true)')
+    parser.add_argument('--no-cache', action='store_true', help='Disable pattern cache')
 
     args = parser.parse_args()
 
+    # Pattern learning (Route B)
+    learned_pattern = None
+    if args.learn_from:
+        cache = PatternCache() if not args.no_cache else None
+        cached = cache.get(args.domain) if cache else None
+
+        if cached:
+            print(f"[Pattern cache] Found: {cached.get('pattern', 'unknown')}")
+            learned_pattern = cached.get('pattern')
+        else:
+            print(f"[Pattern learning] Analyzing {args.learn_from}...")
+            learner = PatternLearner()
+            result = learner.learn_from_emails(args.domain, [args.learn_from])
+
+            if result['success']:
+                print(f"[Pattern learning] Detected: {result['pattern']} (confidence: {result['confidence']})")
+                print(f"[Pattern learning] Reasoning: {result['reasoning']}")
+                if result.get('examples'):
+                    print(f"[Pattern learning] Examples: {', '.join(result['examples'][:3])}")
+
+                learned_pattern = result['pattern']
+                if cache and learned_pattern:
+                    cache.set(args.domain, result)
+            else:
+                print(f"[Pattern learning] Failed: {result['reasoning']}")
+
+        if learned_pattern:
+            print(f"[Pattern learning] Using learned pattern: {learned_pattern}\n")
+
     # Generate candidates
-    if args.pattern:
+    if args.pattern or learned_pattern:
+        pattern_to_use = args.pattern or learned_pattern
+        print(f"Using pattern: {pattern_to_use}")
         candidates = generate_from_known_pattern(
-            args.name, args.domain, args.pattern, args.has_duplicate
+            args.name, args.domain, pattern_to_use, args.has_duplicate
         )
     else:
         candidates = generate_candidates(
