@@ -22,6 +22,7 @@ from lib.scorer import ConfidenceScorer, format_candidate_list
 from lib.chinese import chinese_to_pinyin, is_chinese_name
 from lib.api_providers import HunterioProvider, ZeroIntelProvider, ApolloProvider
 from lib.pattern_learner import PatternLearner, PatternCache
+from lib.linkedin import scrape_linkedin_profile
 
 
 def main():
@@ -41,8 +42,41 @@ def main():
     parser.add_argument('--learn-from', help='Learn pattern from a known email at this domain (e.g., john@company.com)')
     parser.add_argument('--cache-patterns', action='store_true', default=True, help='Cache learned patterns (default: true)')
     parser.add_argument('--no-cache', action='store_true', help='Disable pattern cache')
+    parser.add_argument('--linkedin', help='LinkedIn profile URL to scrape for info')
 
     args = parser.parse_args()
+
+    # LinkedIn profile scraping (Route C)
+    if args.linkedin:
+        print(f"[LinkedIn] Scraping {args.linkedin}...")
+        profile = scrape_linkedin_profile(args.linkedin)
+
+        if profile['success']:
+            print(f"[LinkedIn] Name: {profile.get('name', 'N/A')}")
+            if profile.get('first_name'):
+                print(f"[LinkedIn] First: {profile['first_name']}, Last: {profile.get('last_name', 'N/A')}")
+            if profile.get('job_title'):
+                print(f"[LinkedIn] Title: {profile['job_title']}")
+            if profile.get('company'):
+                print(f"[LinkedIn] Company: {profile['company']}")
+            if profile.get('email'):
+                print(f"[LinkedIn] Email found: {profile['email']}")
+
+            # Use scraped info to override args
+            if profile.get('first_name') and not args.english_first:
+                args.english_first = profile['first_name']
+            if profile.get('last_name') and not args.english_last:
+                args.english_last = profile['last_name']
+            if profile.get('company') and not args.domain:
+                # Try to guess domain from company name
+                from lib.linkedin import extract_company_domain
+                guessed_domain = extract_company_domain(profile['company'])
+                if guessed_domain:
+                    print(f"[LinkedIn] Guessed domain: {guessed_domain}")
+                    args.domain = guessed_domain
+        else:
+            print(f"[LinkedIn] Failed: {profile.get('error', 'Unknown error')}")
+            print("[LinkedIn] Continuing with provided info...\n")
 
     # Pattern learning (Route B)
     learned_pattern = None

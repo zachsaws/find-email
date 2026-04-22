@@ -8,6 +8,7 @@ from .scorer import ConfidenceScorer, format_candidate_list
 from .chinese import chinese_to_pinyin, parse_name, is_chinese_name
 from .api_providers import HunterioProvider, ZeroIntelProvider, ApolloProvider
 from .pattern_learner import PatternLearner, PatternCache
+from .linkedin import LinkedInScraper, scrape_linkedin_profile, extract_company_domain
 
 __all__ = [
     'generate_candidates',
@@ -24,5 +25,8 @@ __all__ = [
     'ZeroIntelProvider',
     'ApolloProvider',
     'PatternLearner',
-    'PatternCache'
+    'PatternCache',
+    'LinkedInScraper',
+    'scrape_linkedin_profile',
+    'extract_company_domain'
 ]
