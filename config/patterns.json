@@ -1,0 +1,51 @@
+{
+  "comment": "Email format patterns. Variables: {first}, {last}, {f}, {l}, {pinyin_first}, {pinyin_last}, {pinyin_f}, {pinyin_l}, {english_first}, {english_last}",
+  "patterns": [
+    "{first}.{last}",
+    "{first}{last}",
+    "{f}{last}",
+    "{f}.{last}",
+    "{first}_{last}",
+    "{first}-{last}",
+    "{first}{l}",
+    "{f}{l}",
+    "{first}.{l}",
+    "{last}.{first}",
+    "{last}{first}",
+    "{last}.{f}",
+    "{last}{f}",
+    "{first}{last}01",
+    "{first}{last}1",
+    "{f}{last}01",
+    "{first}{last}02",
+    "{first}{last}.1",
+    "{first}{last}.2",
+    "{first}{last}{year}",
+    "{first}{last}{year2}",
+    "{f}{l}{year2}",
+    "{english_first}.{last}",
+    "{english_first}{last}",
+    "{english_first}.{english_last}",
+    "{english_first}{english_last}",
+    "{first}{last}.{dept}",
+    "{first}.{last}.{dept}"
+  ],
+  "chinese_patterns": [
+    "{pinyin_first}{pinyin_last}",
+    "{pinyin_first}.{pinyin_last}",
+    "{pinyin_last}.{pinyin_first}",
+    "{pinyin_f}{pinyin_last}",
+    "{pinyin_first}{pinyin_last}01",
+    "{pinyin_first}{pinyin_last}02",
+    "{pinyin_last}{pinyin_first}",
+    "{pinyin_first}{pinyin_last}{year}",
+    "{pinyin_f}.{pinyin_last}",
+    "{pinyin_last}{pinyin_f}"
+  ],
+  "departments": ["it", "tech", "sales", "hr", "finance", "mkt", "marketing", "pr"],
+  "year_suffixes": {
+    "full": ["1980", "1985", "1990", "1995", "2000"],
+    "short": ["80", "85", "90", "95", "00"]
+  },
+  "duplicate_suffixes": ["01", "02", "03", "1", "2", "3", "a", "b", "c"]
+}
