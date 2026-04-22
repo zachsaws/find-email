@@ -9,6 +9,7 @@ from .chinese import chinese_to_pinyin, parse_name, is_chinese_name
 from .api_providers import HunterioProvider, ZeroIntelProvider, ApolloProvider
 from .pattern_learner import PatternLearner, PatternCache
 from .linkedin import LinkedInScraper, scrape_linkedin_profile, extract_company_domain
+from .batch import ResultCache, read_csv_input, write_csv_output, write_json_output
 
 __all__ = [
     'generate_candidates',
@@ -28,5 +29,9 @@ __all__ = [
     'PatternCache',
     'LinkedInScraper',
     'scrape_linkedin_profile',
-    'extract_company_domain'
+    'extract_company_domain',
+    'ResultCache',
+    'read_csv_input',
+    'write_csv_output',
+    'write_json_output'
 ]

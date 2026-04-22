@@ -23,12 +23,13 @@ from lib.chinese import chinese_to_pinyin, is_chinese_name
 from lib.api_providers import HunterioProvider, ZeroIntelProvider, ApolloProvider
 from lib.pattern_learner import PatternLearner, PatternCache
 from lib.linkedin import scrape_linkedin_profile
+from lib.batch import ResultCache, read_csv_input, write_csv_output
 
 
 def main():
     parser = argparse.ArgumentParser(description='Find email from name and domain')
-    parser.add_argument('name', help='Person name (Chinese or English)')
-    parser.add_argument('domain', help='Company domain (e.g., tencent.com)')
+    parser.add_argument('name', nargs='?', help='Person name (Chinese or English)')
+    parser.add_argument('domain', nargs='?', help='Company domain (e.g., tencent.com)')
     parser.add_argument('--english-first', help='English first name')
     parser.add_argument('--english-last', help='English last name')
     parser.add_argument('--has-duplicate', action='store_true', help='Name may have duplicates')
@@ -43,8 +44,114 @@ def main():
     parser.add_argument('--cache-patterns', action='store_true', default=True, help='Cache learned patterns (default: true)')
     parser.add_argument('--no-cache', action='store_true', help='Disable pattern cache')
     parser.add_argument('--linkedin', help='LinkedIn profile URL to scrape for info')
+    parser.add_argument('--batch', help='CSV file with multiple people to process')
+    parser.add_argument('--output-csv', help='Output CSV file for batch results')
+    parser.add_argument('--cache-verify', action='store_true', default=True, help='Cache verification results (default: true)')
+    parser.add_argument('--clear-cache', action='store_true', help='Clear verification cache')
 
     args = parser.parse_args()
+
+    # Batch processing mode (Route D)
+    if args.batch:
+        print(f"[Batch] Reading from {args.batch}...")
+        result_cache = ResultCache() if args.cache_verify and not args.clear_cache else None
+
+        if args.clear_cache:
+            result_cache.clear() if result_cache else None
+            print("[Batch] Cache cleared.")
+
+        people = read_csv_input(args.batch)
+        print(f"[Batch] Processing {len(people)} people...\n")
+
+        all_results = []
+        for i, person in enumerate(people):
+            print(f"[{i+1}/{len(people)}] {person['name']} @ {person['domain']}...")
+            candidates = generate_candidates(
+                person['name'],
+                person['domain'],
+                english_first=person.get('english_first'),
+                english_last=person.get('english_last'),
+                has_duplicate=person.get('has_duplicate', False)
+            )
+
+            verifier = EmailVerifier(provider=args.provider, api_key=args.api_key)
+
+            # Check cache first
+            if result_cache:
+                for c in candidates:
+                    cached = result_cache.get(c['email'])
+                    if cached:
+                        c['verification'] = cached
+                        print(f"  [Cache hit] {c['email']}")
+
+            # Verify uncached
+            if args.verify:
+                for c in candidates:
+                    if not result_cache or not result_cache.get(c['email']):
+                        try:
+                            verification = verifier.verify(c['email'])
+                            c['verification'] = verification
+                            if result_cache:
+                                result_cache.set(c['email'], verification)
+                        except Exception as e:
+                            c['verification'] = {'email': c['email'], 'error': str(e)}
+
+            # Get best result
+            scored = []
+            for c in candidates:
+                verification = c.get('verification', {})
+                if verification:
+                    scored_c = scorer.score(verification, c.get('priority', 2))
+                    scored_c['email'] = c['email']
+                    scored_c['pattern'] = c['pattern']
+                    scored.append(scored_c)
+                else:
+                    # Unverified - use priority as score
+                    scored.append({
+                        'email': c['email'],
+                        'score': (3 - c.get('priority', 2)) * 10,  # priority 1 = 20, 2 = 10, 3 = 0
+                        'level': 'none',
+                        'factors': ['unverified'],
+                        'pattern': c.get('pattern', '')
+                    })
+
+            scored.sort(key=lambda x: x['score'], reverse=True)
+            best = scored[0] if scored else None
+
+            if best:
+                print(f"  Best: {best['email']} ({best['score']}% - {best['level']})")
+                all_results.append({
+                    'name': person['name'],
+                    'domain': person['domain'],
+                    'email': best['email'],
+                    'valid': best['score'] >= 60,
+                    'confidence': best['level'],
+                    'pattern': best.get('pattern', ''),
+                    'methods': best.get('factors', [])
+                })
+            else:
+                print(f"  No candidates found")
+                all_results.append({
+                    'name': person['name'],
+                    'domain': person['domain'],
+                    'email': None,
+                    'valid': False,
+                    'confidence': 'none',
+                    'pattern': '',
+                    'methods': []
+                })
+
+        if args.output_csv:
+            write_csv_output(all_results, args.output_csv)
+            print(f"\n[Batch] Results saved to {args.output_csv}")
+        else:
+            print(f"\n[Batch] Results:")
+            for r in all_results:
+                print(f"  {r['name']} @ {r['domain']}: {r['email']} ({r['confidence']})")
+
+        if result_cache:
+            print(f"\n[Batch] Cache size: {result_cache.size()} entries")
+        return
 
     # LinkedIn profile scraping (Route C)
     if args.linkedin:
