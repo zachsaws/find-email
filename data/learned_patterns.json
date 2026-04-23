@@ -1,0 +1,9 @@
+{
+  "tencent.com": {
+    "patterns": {
+      "{first}.{last}": 1.0
+    },
+    "sample_size": 2,
+    "last_updated": "2026-04-23T10:34:02.528872"
+  }
+}

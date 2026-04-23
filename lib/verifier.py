@@ -6,7 +6,11 @@ import hashlib
 import socket
 import time
 import smtplib
-from typing import Optional
+import dns.resolver
+import dns.reversename
+import dns.query
+import dns.zone
+from typing import Optional, List, Dict
 import urllib.request
 import urllib.error
 
@@ -17,6 +21,8 @@ class EmailVerifier:
     def __init__(self):
         self.mx_cache = {}
         self.smtp_timeout = 10
+        self.dnsbl_cache = {}
+        self.server_type_cache = {}
 
     def verify(self, email: str) -> dict:
         """
@@ -49,6 +55,18 @@ class EmailVerifier:
         if not mx_exists:
             result['reason'] = 'No MX records - domain cannot receive email'
             return result
+
+        # DNSBL blacklist check
+        dnsbl_result = self._check_dnsbl_blacklist(domain)
+        result['methods']['dnsbl'] = dnsbl_result
+        if dnsbl_result:
+            result['reason'] = 'Domain blacklisted in DNSBL'
+            result['confidence'] = 'low'
+            return result
+
+        # Corporate mail server detection
+        server_type = self._detect_mail_server_type(domain)
+        result['methods']['server_type'] = server_type
 
         # HTTP-based checks (parallel)
         gravatar_result = self._check_gravatar(email)
@@ -104,6 +122,97 @@ class EmailVerifier:
         self.mx_cache[domain] = result
         return result
 
+    def _check_dnsbl_blacklist(self, domain: str) -> bool:
+        """Check if domain is blacklisted in DNSBL."""
+        if domain in self.dnsbl_cache:
+            return self.dnsbl_cache[domain]
+
+        # Common DNSBL servers
+        dnsbl_servers = [
+            'zen.spamhaus.org',
+            'bl.spamcop.net',
+            'dnsbl.sorbs.net'
+        ]
+
+        try:
+            # Get domain IP (for A record domains)
+            try:
+                ip = socket.gethostbyname(domain)
+                ip_parts = ip.split('.')
+                reversed_ip = '.'.join(reversed(ip_parts))
+
+                for dnsbl in dnsbl_servers:
+                    try:
+                        query = f"{reversed_ip}.{dnsbl}"
+                        dns.resolver.resolve(query, 'A')
+                        self.dnsbl_cache[domain] = True
+                        return True
+                    except:
+                        continue
+            except:
+                # Domain doesn't resolve to IP, check domain-based DNSBL
+                for dnsbl in dnsbl_servers:
+                    try:
+                        query = f"{domain}.{dnsbl}"
+                        dns.resolver.resolve(query, 'A')
+                        self.dnsbl_cache[domain] = True
+                        return True
+                    except:
+                        continue
+
+            self.dnsbl_cache[domain] = False
+            return False
+        except Exception:
+            self.dnsbl_cache[domain] = False
+            return False
+
+    def _detect_mail_server_type(self, domain: str) -> str:
+        """Detect type of mail server (corporate, shared, etc.)."""
+        if domain in self.server_type_cache:
+            return self.server_type_cache[domain]
+
+        try:
+            mx_records = dns.resolver.resolve(domain, 'MX')
+            mx_hosts = [str(record.exchange).rstrip('.') for record in mx_records]
+
+            # Corporate mail server indicators
+            corporate_indicators = [
+                'mail.', 'smtp.', 'mx.', 'mailserver.',
+                'outlook.', 'exchange.', 'office365.',
+                'google.', 'gmail.', 'googlemail.',
+                'zoho.', 'yahoo.', 'hotmail.'
+            ]
+
+            # Check MX host patterns
+            for mx_host in mx_hosts:
+                mx_host_lower = mx_host.lower()
+
+                # Known corporate services
+                if any(indicator in mx_host_lower for indicator in ['google.', 'gmail.', 'googlemail.']):
+                    self.server_type_cache[domain] = 'google_workspace'
+                    return 'google_workspace'
+
+                if any(indicator in mx_host_lower for indicator in ['outlook.', 'exchange.', 'office365.', 'microsoft.']):
+                    self.server_type_cache[domain] = 'microsoft_365'
+                    return 'microsoft_365'
+
+                if any(indicator in mx_host_lower for indicator in ['zoho.']):
+                    self.server_type_cache[domain] = 'zoho_mail'
+                    return 'zoho_mail'
+
+                # Corporate pattern (subdomain of main domain)
+                if domain.lower() in mx_host_lower and mx_host.count('.') > domain.count('.'):
+                    self.server_type_cache[domain] = 'corporate_custom'
+                    return 'corporate_custom'
+
+            # Default to generic
+            self.server_type_cache[domain] = 'generic'
+            return 'generic'
+
+        except Exception:
+            self.server_type_cache[domain] = 'unknown'
+            return 'unknown'
+
     def _check_gravatar(self, email: str) -> bool:
         """
         Check if email has a Gravatar.
@@ -150,7 +259,7 @@ class EmailVerifier:
 
     def _smtp_verify(self, email: str, domain: str) -> str:
         """
-        Verify email via SMTP.
+        Enhanced SMTP verification with retry logic and timeout optimization.
 
         Returns:
         - 'valid': Email exists
@@ -162,17 +271,19 @@ class EmailVerifier:
         try:
             import dns.resolver
             mx_records = dns.resolver.resolve(domain, 'MX')
+            # Sort by priority
+            mx_records = sorted(mx_records, key=lambda x: x.preference)
             mx_hosts = [str(r.exchange).rstrip('.') for r in mx_records]
         except Exception:
             return 'timeout'
 
-        # Check for catch-all first
-        if self._is_catchall(mx_hosts, domain):
+        # Check for catch-all first with enhanced detection
+        if self._is_catchall_enhanced(mx_hosts, domain):
             return 'catchall'
 
-        # Try SMTP verification on each MX
+        # Try SMTP verification on each MX with retry logic
         for mx_host in mx_hosts:
-            result = self._try_smtp(mx_host, email)
+            result = self._try_smtp_enhanced(mx_host, email, domain)
             if result in ['valid', 'invalid']:
                 return result
 
@@ -241,6 +352,107 @@ class EmailVerifier:
                 continue
             except Exception:
                 continue
+
+        return 'timeout'
+
+    def _is_catchall_enhanced(self, mx_hosts: list, domain: str) -> bool:
+        """Enhanced catch-all detection with multiple test addresses."""
+        test_addresses = [
+            f"nonexistent_{int(time.time()) % 10000}@{domain}",
+            f"test_invalid_{hash(domain) % 1000}@{domain}",
+            f"definitely_not_real_{domain.replace('.', '_')}@{domain}"
+        ]
+
+        accepted_count = 0
+        total_tests = 0
+
+        for test_email in test_addresses:
+            for mx_host in mx_hosts:
+                if total_tests >= 6:  # Limit tests to avoid long delays
+                    break
+
+                try:
+                    server = smtplib.SMTP(mx_host, timeout=self.smtp_timeout)
+                    server.ehlo()
+
+                    # Try STARTTLS if available
+                    try:
+                        if server.has_extn('STARTTLS'):
+                            server.starttls()
+                            server.ehlo()
+                    except Exception:
+                        pass
+
+                    server.mail('test@example.com')
+                    response = server.rcpt(test_email)
+                    code = response[0]
+                    server.quit()
+
+                    total_tests += 1
+                    if code == 250:
+                        accepted_count += 1
+                    elif code == 550:
+                        # Definitely not catch-all
+                        return False
+
+                except Exception:
+                    continue
+
+        # If most test addresses are accepted, likely catch-all
+        if total_tests > 0 and accepted_count / total_tests > 0.7:
+            return True
+
+        return False
+
+    def _try_smtp_enhanced(self, mx_host: str, email: str, domain: str) -> str:
+        """Enhanced SMTP verification with retry logic and port fallback."""
+        # Try different ports in order of preference
+        ports = [587, 465, 25]
+
+        for attempt in range(3):  # Retry up to 3 times
+            for port in ports:
+                try:
+                    if port == 465:
+                        # SSL connection
+                        server = smtplib.SMTP_SSL(mx_host, port, timeout=self.smtp_timeout)
+                    else:
+                        server = smtplib.SMTP(mx_host, port, timeout=self.smtp_timeout)
+
+                    server.ehlo()
+
+                    # Try STARTTLS if available (except for SSL port)
+                    try:
+                        if port != 465 and server.has_extn('STARTTLS'):
+                            server.starttls()
+                            server.ehlo()
+                    except Exception:
+                        pass
+
+                    server.mail('verify@example.com')
+                    response = server.rcpt(email)
+                    code = response[0]
+                    server.quit()
+
+                    if code == 250:
+                        return 'valid'
+                    elif code == 550:
+                        return 'invalid'
+                    elif code == 451:
+                        # Greylisting - wait and retry
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                        continue
+                    else:
+                        # Other codes - continue to next port
+                        continue
+
+                except smtplib.SMTPServerDisconnected:
+                    continue
+                except smtplib.SMTPConnectError:
+                    continue
+                except smtplib.SMTPRecipientsRefused:
+                    return 'invalid'
+                except Exception:
+                    continue
 
         return 'timeout'
 

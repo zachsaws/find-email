@@ -1,0 +1,92 @@
+[
+  {
+    "timestamp": "2026-04-20T10:00:00",
+    "name": "张伟",
+    "domain": "tencent.com",
+    "email": "zhang.wei@tencent.com",
+    "pattern": "{first}.{last}",
+    "is_valid": true,
+    "confidence": "high"
+  },
+  {
+    "timestamp": "2026-04-20T10:01:00",
+    "name": "张伟",
+    "domain": "tencent.com",
+    "email": "zhangwei@tencent.com",
+    "pattern": "{first}{last}",
+    "is_valid": false,
+    "confidence": "low"
+  },
+  {
+    "timestamp": "2026-04-20T10:02:00",
+    "name": "李明",
+    "domain": "tencent.com",
+    "email": "li.ming@tencent.com",
+    "pattern": "{first}.{last}",
+    "is_valid": true,
+    "confidence": "high"
+  },
+  {
+    "timestamp": "2026-04-20T10:03:00",
+    "name": "David Zhang",
+    "domain": "microsoft.com",
+    "email": "david.zhang@microsoft.com",
+    "pattern": "{first}.{last}",
+    "is_valid": true,
+    "confidence": "high"
+  },
+  {
+    "timestamp": "2026-04-20T10:04:00",
+    "name": "David Zhang",
+    "domain": "microsoft.com",
+    "email": "dzhang@microsoft.com",
+    "pattern": "{f}{last}",
+    "is_valid": true,
+    "confidence": "medium"
+  },
+  {
+    "timestamp": "2026-04-20T10:05:00",
+    "name": "John Smith",
+    "domain": "google.com",
+    "email": "john.smith@google.com",
+    "pattern": "{first}.{last}",
+    "is_valid": true,
+    "confidence": "high"
+  },
+  {
+    "timestamp": "2026-04-20T10:06:00",
+    "name": "John Smith",
+    "domain": "google.com",
+    "email": "j.smith@google.com",
+    "pattern": "{f}.{last}",
+    "is_valid": false,
+    "confidence": "low"
+  },
+  {
+    "timestamp": "2026-04-20T10:07:00",
+    "name": "王芳",
+    "domain": "alibaba.com",
+    "email": "wang.fang@alibaba.com",
+    "pattern": "{first}.{last}",
+    "is_valid": true,
+    "confidence": "high"
+  },
+  {
+    "timestamp": "2026-04-20T10:08:00",
+    "name": "王芳",
+    "domain": "alibaba.com",
+    "email": "wangfang@alibaba.com",
+    "pattern": "{first}{last}",
+    "is_valid": false,
+    "confidence": "low"
+  },
+  {
+    "timestamp": "2026-04-20T10:09:00",
+    "name": "Michael Chen",
+    "domain": "apple.com",
+    "email": "michael.chen@apple.com",
+    "pattern": "{first}.{last}",
+    "is_valid": true,
+    "confidence": "high"
+  }
+]

@@ -64,6 +64,20 @@ class ConfidenceScorer:
             elif methods.get('mx'):
                 score += 20
                 factors.append('domain has MX records')
+
+            # Enhanced verification bonuses
+            server_type = methods.get('server_type')
+            if server_type in ['google_workspace', 'microsoft_365']:
+                score += 15
+                factors.append(f'known enterprise mail service ({server_type})')
+            elif server_type == 'corporate_custom':
+                score += 10
+                factors.append('custom corporate mail server')
+
+            # DNSBL penalty
+            if methods.get('dnsbl'):
+                score = max(0, score - 40)
+                factors.append('domain blacklisted')
         else:
             if methods.get('smtp') == 'invalid':
                 score = 0
@@ -71,6 +85,9 @@ class ConfidenceScorer:
             elif not methods.get('mx'):
                 score = 0
                 factors.append('no MX records')
+            elif methods.get('dnsbl'):
+                score = 0
+                factors.append('domain blacklisted')
 
         # Determine level
         if score >= 85:
